@@ -12,6 +12,8 @@ import Data.List (sort, inits, tails)
 import Data.Map.Strict (Map(..))
 import qualified Data.Map.Strict as Map
 
+import Data.Foldable
+
 import Types
 import Rewriting (neighbours, convex, reachable)
 import Match (proposeNodeMatch, proposeEdgeMatchesFor)
@@ -26,13 +28,13 @@ tests = testGroup "Tests"
 
 testMatchingFunctions = testGroup "test matching functions"
   [ testCase "matching a graph to itself should propose all nodes" $ assertEqual ""
-      (nodes linearGraph)
+      (nodeNames linearGraph)
       (observeAll (proposeNodeMatch linearGraph linearGraph Map.empty))
   , testCase "proposeNodeMatch should ignore nodes in matched" $ assertEqual ""
-      [1..7]
+      [0..6]
       (observeAll (proposeNodeMatch dpoExample dpoExample (Map.singleton 8 8)))
   , testCase "edgeMatchesFor simple graph" $ assertEqual ""
-      [[Hyperedge [2] [2,3]]]
+      [[mkEdge "E1" [2] [2,3]]]
       (observeAll $ proposeEdgeMatchesFor contextGraph patternGraph Map.empty 1)
   ]
 
@@ -58,41 +60,48 @@ simpleTests = zipWith f [1..] $
 
 ----- Test data ---------
 
--- Should propose [1,2] for [1] and [2,3] for [2].
-patternGraph :: Hypergraph Int Int
-patternGraph = mkGraph [1] [ Hyperedge [1] [1,2] ]
+-- Utility for making node names
+nodeName :: Int -> String
+nodeName i = 'V':show i
 
-contextGraph :: Hypergraph Int Int
+
+-- Should propose [1,2] for [1] and [2,3] for [2].
+patternGraph :: Hypergraph String String
+patternGraph = mkGraph ["V1", "V2"] [ mkEdge "E1" [1] [1,2] ]
+
+contextGraph :: Hypergraph String String
 contextGraph = mkGraph v e where
-  v = [1..3]
-  e = [ Hyperedge [1] [1,2], Hyperedge [2] [2,3] ]
+  v = map nodeName [1..3]
+  e = [ mkEdge "E1" [1] [1,2], mkEdge "E2" [2] [2,3] ]
 
 -- A simple test graph
 testGraph = mkGraph v e where
   v = [1..4]
   e =
-    [ Hyperedge [1, 3] [3, 4]
-    , Hyperedge [1, 2] [1]
+    [ mkEdge "E1" [1, 3] [3, 4]
+    , mkEdge "E2" [1, 2] [1]
     ]
 
-mkLinearGraph :: Int -> Hypergraph Int Int
+mkLinearGraph :: Int -> Hypergraph String String
 mkLinearGraph n = mkGraph v e
   where
-    v = [1..n]
-    e = zipWith (\v1 v2 -> Hyperedge [v1] [v2]) v (drop 1 v)
+    ixs = [1..n]
+    v = map nodeName ixs
+    e = zipWith (\v1 v2 -> mkEdge ("E" ++ show v1) [v1] [v2]) ixs (drop 1 ixs)
 
 -- A graph like 1 --> 2 --> 3 --> ... --> 8
-linearGraph :: Hypergraph Int Int
+linearGraph :: Hypergraph String String
 linearGraph = mkLinearGraph 8
 
 -- DPO example from http://www.cas.mcmaster.ca/~kahl/CAS701/2007/P/DPO.pdf
 dpoExample = mkGraph v e where
-  v = [1..7]
+  ixs = [1..7]
+  v = map nodeName [1..7]
   e =
-    [ Hyperedge [1] [2, 3, 6]
-    , Hyperedge [2] [7]
-    , Hyperedge [3] [2]
-    , Hyperedge [6] [7]
+    [ mkEdge "E1" [1] [2, 3, 6]
+    , mkEdge "E2" [2] [7]
+    , mkEdge "E3" [3] [2]
+    , mkEdge "E4" [6] [7]
     ]
 dpoSubgraph = [1,2,3]
 

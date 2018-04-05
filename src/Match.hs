@@ -6,6 +6,9 @@ import Control.Monad.Logic
 import Data.Map.Strict (Map(..))
 import qualified Data.Map.Strict as Map
 
+import Data.Vector (Vector(..))
+import qualified Data.Vector as Vector
+
 import Types
 import Util (bsum)
 
@@ -45,20 +48,20 @@ import Util (bsum)
 -- TODO: identify nodes and edges by their index. Currently difficult to tell
 -- if an edge has been used already!
 proposeEdgeMatchesFor
-  :: (MonadLogic m, Ord v)
-  => Hypergraph v v -- ^ Graph to match in
-  -> Hypergraph v v -- ^ Pattern to match
-  -> Map v v -- ^ Already-matched nodes, and their corresponding vertexes in graph
-  -> v -- ^ Node to propose edge sets for
-  -> m [Hyperedge v] -- ^ Candidate edge-set
+  :: MonadLogic m
+  => Hypergraph v e -- ^ Graph to match in
+  -> Hypergraph v e -- ^ Pattern to match
+  -> Map Int Int    -- ^ Already-matched nodes, and their corresponding vertexes in graph
+  -> Int            -- ^ Node to propose edge sets for
+  -> m [Hyperedge e] -- ^ Candidate edge-set
 proposeEdgeMatchesFor graph pattern matched node = return []
 
 proposeNodeMatch
-  :: (MonadLogic m, Ord v)
-  => Hypergraph v v -- ^ Graph to match in
-  -> Hypergraph v v -- ^ Pattern to match
-  -> Map v v -- ^ Already-matched nodes, and their corresponding vertexes in graph
-  -> m v -- ^ Candidate node
-proposeNodeMatch graph pattern matched =
-  bsum . filter (un matched) . nodes $ pattern
-  where un m = not . flip Map.member m
+  :: MonadLogic m
+  => Hypergraph v e -- ^ Graph to match in
+  -> Hypergraph v e -- ^ Pattern to match
+  -> Map Int Int    -- ^ Map pattern nodes to their matched graph vertex
+  -> m Int          -- ^ Candidate node
+proposeNodeMatch graph pattern matched = bsum . filter (un matched) $ ixs where
+  un m = not . flip Map.member m
+  ixs  = nodeNames pattern

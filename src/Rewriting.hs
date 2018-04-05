@@ -14,29 +14,32 @@ import Data.Foldable
 import Data.Set (Set(..))
 import qualified Data.Set as Set
 
+import Data.Vector (Vector(..))
+import qualified Data.Vector as Vector
+
 import Types
 import Util (bsum)
 
 -- | Is node v in the domain of a 'Hyperedge'?
-inDomain :: Eq v => v -> Hyperedge v -> Bool
-inDomain v = elem v . dom
+inDomain :: Int -> Hyperedge a -> Bool
+inDomain i = Vector.elem i . dom
 
 -- | Is node v in the codomain of a hyperedge.
-inCodomain :: Eq v => v -> Hyperedge v -> Bool
-inCodomain v = elem v . cod
+inCodomain :: Int -> Hyperedge a -> Bool
+inCodomain i = Vector.elem i . cod
 
 
 -- Immediate neighbours of a node
-neighbours :: Eq v => Hypergraph v v -> v -> [v]
-neighbours (Hypergraph vs es) v = nodes where
-  edges = filter (inDomain v) es
-  nodes = nub <$> cod =<< edges
+neighbours :: Hypergraph v e -> Int -> [Int]
+neighbours (Hypergraph vs es) i = nodes where
+  edges = filter (inDomain i) (toList es)
+  nodes = nub <$> (toList . cod) =<< edges
 
--- List of nodes reachable from v
+-- List of nodes reachable from a list of starting vertices
 --
 -- NOTE: this can be sped up by ignoring hyper-edges that have already been
 -- encountered.
-reachable :: (MonadLogic m, Ord v) => Hypergraph v v -> [v] -> m v
+reachable :: MonadLogic m => Hypergraph v e -> [Int] -> m Int
 reachable g vs = go Set.empty (vs >>= neighbours g) where
   n = length (nodes g)
 
@@ -57,11 +60,16 @@ reachable g vs = go Set.empty (vs >>= neighbours g) where
 --
 -- let A be the intersection of context + nodes reachable from subgraph
 -- let B be the intersection of subgraph + nodes reachable from A
-convex' :: Ord v => Hypergraph v v -> [v] -> [v]
+--
+-- This function returns B - the nodes which "break" the convexity property
+--
+-- TODO: bug with empty graph
+convex' :: Hypergraph v e -> [Int] -> [Int]
 convex' g vs = b
   where
+    n = Vector.length $ nodes g
     subgraph = Set.fromList vs
-    context  = Set.difference (Set.fromList (nodes g)) subgraph
+    context  = Set.difference (Set.fromList [0..n-1]) subgraph
 
     -- Context nodes reachable from subgraph
     a = filter (flip Set.member context) . observeAll . reachable g . toList $ subgraph
@@ -70,5 +78,5 @@ convex' g vs = b
     b = filter (flip Set.member subgraph) . observeAll . reachable g . toList $ a
 
 -- | Convexity predicate
-convex :: Ord v => Hypergraph v v -> [v] -> Bool
+convex :: Ord v => Hypergraph v e -> [Int] -> Bool
 convex g vs = null (convex' g vs)
