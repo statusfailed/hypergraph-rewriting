@@ -18,7 +18,7 @@ library
   -- other-extensions:
   exposed-modules:
       Types
-    , Rewriting
+    , Rewrite
     , Match
   build-depends:       base, logict, containers, array, mtl, vector
   hs-source-dirs:      src

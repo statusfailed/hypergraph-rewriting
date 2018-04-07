@@ -1,4 +1,4 @@
-module Rewriting where
+module Rewrite where
 
 import Control.Monad
 import Control.Monad.Logic
