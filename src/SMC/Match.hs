@@ -120,12 +120,12 @@ data MatchTask = V Int | E Int
 
 -- | 'match graph pattern' finds an instance of 'pattern' within 'graph', returned as
 -- a bidirectional mapping of node and edge IDs.
-match
+match'
   :: (Eq e, Ord e, Eq v, Ord v)
   => Hypergraph v e
   -> Hypergraph v e
   -> LogicState [MatchTask] Matching
-match g p = step emptyMatching where
+match' g p = step emptyMatching where
 
   -- Run until queue exhausted
   step m = do
@@ -134,8 +134,8 @@ match g p = step emptyMatching where
       []      -> return m -- TODO: checks? complete matching?
       (t:ts') -> updateMatching g p t m >>= (\m' -> put ts' >> step m')
 
-match' g p = fmap fst $ runLogicState (match g p) tasks
-  where tasks = taskBfs p
+match :: (Ord e, Ord v) => Hypergraph v e -> Hypergraph v e -> [Matching]
+match g p = fmap fst $ runLogicState (match' g p) $ taskBfs p
 
 -- Update a matching from a MatchTask and current 'Matching'
 updateMatching g p t m@(Matching matchedNodes matchedEdges) = do
