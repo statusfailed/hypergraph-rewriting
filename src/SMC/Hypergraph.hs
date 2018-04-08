@@ -1,9 +1,8 @@
-module Rewrite where
+module SMC.Hypergraph where
 
 import Control.Monad
 import Control.Monad.Logic
-
-import Control.Monad.Reader.Class
+import Control.Monad.State
 
 import qualified Data.Map.Strict as Map
 import Data.Map.Strict (Map(..))
@@ -17,28 +16,50 @@ import qualified Data.Set as Set
 import Data.Vector (Vector(..))
 import qualified Data.Vector as Vector
 
-import Types
-import Util (bsum)
+import SMC.Util (bsum)
 
-testPattern = mkGraph v e where
-  ixs = [0..4]
-  name = ('V':) . show
-  v = map name ixs
-  e =
-    [ mkEdge () [0] [1,2]
-    , mkEdge () [0] [3,4]
-    ]
+type LogicState s = StateT s Logic
 
-testGraph = mkGraph v e where
-  ixs = [0..5]
-  name = ('V':) . show
-  v = map name ixs
-  e =
-    [ mkEdge () [0] [1,2]
-    , mkEdge () [0] [5,0]
-    , mkEdge () [0] [3,4]
-    ]
+runLogicState :: LogicState s a -> s -> [(a, s)]
+runLogicState m s = observeAll (runStateT m s)
 
+-- | Directed hyperedges, with labels of type 'a'
+data Hyperedge a = Hyperedge
+  { val :: a
+  , dom :: Vector Int
+  , cod :: Vector Int
+  } deriving(Eq, Ord, Read, Show)
+
+instance Functor Hyperedge where
+  fmap f (Hyperedge a d c) = Hyperedge (f a) d c
+
+
+-- | Hypergraph with nodes labeled with type v, edges with type e.
+data Hypergraph v e = Hypergraph
+  { nodes :: Vector v
+  , edges :: Vector (Hyperedge e)
+  } deriving(Eq, Ord, Read, Show)
+
+-- Functor on edge type
+instance Functor (Hypergraph v) where
+  fmap f (Hypergraph n e) = Hypergraph n (fmap (fmap f) e)
+
+
+-- TODO: smart constructor; check vertexes are a superset of those referenced in
+-- edges.
+mkGraph :: [v] -> [Hyperedge e] -> Hypergraph v e
+mkGraph vs es = Hypergraph (Vector.fromList vs) (Vector.fromList es)
+
+mkEdge :: a -> [Int] -> [Int] -> Hyperedge a
+mkEdge val dom cod = Hyperedge val (Vector.fromList dom) (Vector.fromList cod)
+
+numNodes :: Hypergraph v e -> Int
+numNodes = Vector.length . nodes
+
+nodeNames :: Hypergraph v e -> [Int]
+nodeNames g
+  | numNodes g == 0 = []
+  | otherwise = [0 .. numNodes g - 1]
 
 -- | Is node v in the domain of a 'Hyperedge'?
 inDomain :: Int -> Hyperedge a -> Bool
@@ -69,6 +90,7 @@ reachable g vs = go Set.empty (vs >>= neighbours g) where
     where
       vs' = Set.union visited (Set.fromList current)
       cs' = filter (not . flip Set.member vs') $ neighbours g =<< current
+
 
 -- Is a subgraph convex?
 --

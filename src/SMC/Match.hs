@@ -1,5 +1,5 @@
 {-# LANGUAGE FlexibleContexts #-}
-module Match where
+module SMC.Match where
 
 import Control.Lens
 import Control.Monad
@@ -19,9 +19,8 @@ import Data.Maybe (catMaybes)
 import Data.Bimap (Bimap(..))
 import qualified Data.Bimap as Bimap
 
-import Types
-import Util (bsum)
-import Rewrite
+import SMC.Hypergraph
+import SMC.Util (bsum)
 
 data Matching = Matching
   { matchedNodes :: Bimap Int Int
@@ -143,6 +142,26 @@ updateMatching g p t m@(Matching matchedNodes matchedEdges) = do
                           [0..Vector.length (edges g) - 1]
       guard (matchEdge g p m pe ge)
       return $ Matching matchedNodes (Bimap.insert pe ge matchedEdges) 
+
+
+testPattern = mkGraph v e where
+  ixs = [0..4]
+  name = ('V':) . show
+  v = map name ixs
+  e =
+    [ mkEdge () [0] [1,2]
+    , mkEdge () [0] [3,4]
+    ]
+
+testGraph = mkGraph v e where
+  ixs = [0..5]
+  name = ('V':) . show
+  v = map name ixs
+  e =
+    [ mkEdge () [0] [1,2]
+    , mkEdge () [0] [5,0]
+    , mkEdge () [0] [3,4]
+    ]
 
 main = runLogicState (match testGraph testPattern) tasks
   where tasks = map V [0..4] ++ map E [0..1]
