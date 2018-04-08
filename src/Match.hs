@@ -126,10 +126,10 @@ match g p = step emptyMatching where
     ts <- get
     case ts of
       []      -> return m -- TODO: checks? complete matching?
-      (t:ts') -> go g p t m >>= (\m' -> put ts' >> step m')
+      (t:ts') -> updateMatching g p t m >>= (\m' -> put ts' >> step m')
 
--- Compute a new matching from a task and current matching
-go g p t m@(Matching matchedNodes matchedEdges) = do
+-- Update a matching from a MatchTask and current 'Matching'
+updateMatching g p t m@(Matching matchedNodes matchedEdges) = do
   case t of
     V pn -> do
       -- propose unmatched nodes
