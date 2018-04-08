@@ -1,7 +1,7 @@
 {-# LANGUAGE FlexibleContexts #-}
 module SMC.Match where
 
-import Control.Lens
+import Control.Lens hiding ((|>), (<|), (:<), (>:))
 import Control.Monad
 import Control.Monad.State
 import Control.Monad.Logic
@@ -11,8 +11,14 @@ import Data.Foldable
 import Data.Map.Strict (Map(..))
 import qualified Data.Map.Strict as Map
 
+import Data.Set (Set(..))
+import qualified Data.Set as Set
+
 import Data.Vector (Vector(..), (!), (!?))
 import qualified Data.Vector as Vector
+
+import Data.Sequence (Seq(..), (|>), (<|), ViewL(..), ViewR(..))
+import qualified Data.Sequence as Seq
 
 import Data.Maybe (catMaybes)
 
@@ -66,7 +72,7 @@ checkEdge
 
     -- If it does match, make sure patNode and graphNode appear in same positions
     -- in its domain and codomain.
-    Just graphIndex -> 
+    Just graphIndex ->
       let graphEdge  = edges g ! graphIndex
           domIndices =
             edgeIndices dom patNodeIx patEdge == edgeIndices dom graphNodeIx graphEdge
@@ -111,6 +117,7 @@ edgeEquiv m xs ys
 data MatchTask = V Int | E Int
   deriving(Eq, Ord, Read, Show)
 
+
 -- | 'match graph pattern' finds an instance of 'pattern' within 'graph', returned as
 -- a bidirectional mapping of node and edge IDs.
 match
@@ -127,6 +134,9 @@ match g p = step emptyMatching where
       []      -> return m -- TODO: checks? complete matching?
       (t:ts') -> updateMatching g p t m >>= (\m' -> put ts' >> step m')
 
+match' g p = fmap fst $ runLogicState (match g p) tasks
+  where tasks = taskBfs p
+
 -- Update a matching from a MatchTask and current 'Matching'
 updateMatching g p t m@(Matching matchedNodes matchedEdges) = do
   case t of
@@ -139,4 +149,42 @@ updateMatching g p t m@(Matching matchedNodes matchedEdges) = do
     E pe -> do
       ge <- bsum $ filter (not . flip Bimap.memberR matchedEdges) (edgeNames g)
       guard (matchEdge g p m pe ge)
-      return $ Matching matchedNodes (Bimap.insert pe ge matchedEdges) 
+      return $ Matching matchedNodes (Bimap.insert pe ge matchedEdges)
+
+
+------------
+
+type BfsState = (Set MatchTask, Seq MatchTask, Seq MatchTask)
+
+-- Immediate successors of the current task
+taskSucc :: Hypergraph v e -> MatchTask -> Vector MatchTask
+taskSucc g (E e) = maybe Vector.empty (fmap V . cod) (edges g !? e)
+taskSucc g (V v)
+  = fmap (E . fst)
+  . Vector.filter snd
+  . Vector.imap (\i e -> (i, inDomain v e)) $ (edges g)
+
+taskBfs' :: Hypergraph v e -> State BfsState ()
+taskBfs' g = do
+  (visited, todo, done) <- get
+  case Seq.viewl todo of
+    Seq.EmptyL -> return ()
+    h :< t     -> do
+      forM_ (taskSucc g h) (addTask visited)
+      complete h
+      modify (over _2 $ Seq.drop 1)
+      taskBfs' g
+  return ()
+
+  where
+    addTask v t = when (Set.notMember t v) $ modify (over _2 (|> t))
+    complete t  = modify (over _3 (|> t)) >> modify (over _1 $ Set.insert t)
+
+-- | Breadth-first traversal of a Hypergraph, returning a list of nodes and edges.
+taskBfs :: Hypergraph v e -> [MatchTask]
+taskBfs g
+  | Vector.null (nodes g) = []
+  | otherwise = toList . view _3 $ execState (taskBfs' g) s
+  where
+    -- start at first vertex
+    s = (Set.empty, Seq.singleton (V 0), Seq.empty)
