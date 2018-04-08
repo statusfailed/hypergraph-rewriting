@@ -53,13 +53,17 @@ mkGraph vs es = Hypergraph (Vector.fromList vs) (Vector.fromList es)
 mkEdge :: a -> [Int] -> [Int] -> Hyperedge a
 mkEdge val dom cod = Hyperedge val (Vector.fromList dom) (Vector.fromList cod)
 
-numNodes :: Hypergraph v e -> Int
-numNodes = Vector.length . nodes
-
+-- | Indexes of all nodes in a graph
 nodeNames :: Hypergraph v e -> [Int]
 nodeNames g
-  | numNodes g == 0 = []
-  | otherwise = [0 .. numNodes g - 1]
+  | Vector.null (nodes g) = []
+  | otherwise = [0 .. Vector.length (nodes g) - 1]
+
+-- | Indexes of all edges in a graph
+edgeNames :: Hypergraph v e -> [Int]
+edgeNames g
+  | Vector.null (edges g) = []
+  | otherwise = [0 .. Vector.length (edges g) - 1]
 
 -- | Is node v in the domain of a 'Hyperedge'?
 inDomain :: Int -> Hyperedge a -> Bool

@@ -132,36 +132,11 @@ updateMatching g p t m@(Matching matchedNodes matchedEdges) = do
   case t of
     V pn -> do
       -- propose unmatched nodes
-      gn <- bsum $ filter (not . flip Bimap.memberR matchedNodes)
-                          [0..Vector.length (nodes g) - 1]
+      gn <- bsum $ filter (not . flip Bimap.memberR matchedNodes) (nodeNames g)
       guard (matchNode g p m pn gn)
       return $ Matching (Bimap.insert pn gn matchedNodes) matchedEdges
 
     E pe -> do
-      ge <- bsum $ filter (not . flip Bimap.memberR matchedEdges)
-                          [0..Vector.length (edges g) - 1]
+      ge <- bsum $ filter (not . flip Bimap.memberR matchedEdges) (edgeNames g)
       guard (matchEdge g p m pe ge)
       return $ Matching matchedNodes (Bimap.insert pe ge matchedEdges) 
-
-
-testPattern = mkGraph v e where
-  ixs = [0..4]
-  name = ('V':) . show
-  v = map name ixs
-  e =
-    [ mkEdge () [0] [1,2]
-    , mkEdge () [0] [3,4]
-    ]
-
-testGraph = mkGraph v e where
-  ixs = [0..5]
-  name = ('V':) . show
-  v = map name ixs
-  e =
-    [ mkEdge () [0] [1,2]
-    , mkEdge () [0] [5,0]
-    , mkEdge () [0] [3,4]
-    ]
-
-main = runLogicState (match testGraph testPattern) tasks
-  where tasks = map V [0..4] ++ map E [0..1]
