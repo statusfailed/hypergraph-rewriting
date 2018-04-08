@@ -6,4 +6,5 @@ TODO list:
 
 - [x] Matching patterns in contexts
 - [ ] Rendering hypergraphs to SVG
+- [ ] Parsing term expressions
 - [ ] Replacing patterns
