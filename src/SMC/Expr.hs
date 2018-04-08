@@ -97,20 +97,3 @@ toGraph f e =
   where
     s = BuildState 0 [] -- note this is immediately overwritten by toGraph'
     g = maybe mzero return
-
-example = toGraph return $ Seq (Generator (1,2)) (Generator (2,1))
-example2 = toGraph return $ Par (Generator (1,1)) (Generator (1,1))
-
-double t = Par t t
-
-data IA = Id | Add
-  deriving(Eq, Ord, Read, Show)
-
-iaType Id  = (1,1)
-iaType Add = (2,1)
-
--- rule: Seq (Par Id Add) == Seq (Par Add Id) Add
-e = Seq (Par (Generator Id) (Generator Add)) (Generator Add)
-
-(Just g) = toGraph (return . iaType) $ double e
-(Just p) = toGraph (return . iaType) e
