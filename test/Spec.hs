@@ -14,28 +14,16 @@ import qualified Data.Map.Strict as Map
 
 import Data.Foldable
 
-import Types
-import Rewrite (neighbours, convex, reachable)
-import Match (proposeNodeMatch, proposeEdgeMatchesFor)
+import SMC.Hypergraph
+  ( Hypergraph(..), Hyperedge(..), mkEdge, mkGraph
+  , neighbours, convex, reachable
+  )
 
 main = defaultMain tests
 
 tests :: TestTree
 tests = testGroup "Tests"
   [ testRewritingFunctions
-  , testMatchingFunctions
-  ]
-
-testMatchingFunctions = testGroup "test matching functions"
-  [ testCase "matching a graph to itself should propose all nodes" $ assertEqual ""
-      (nodeNames linearGraph)
-      (observeAll (proposeNodeMatch linearGraph linearGraph Map.empty))
-  , testCase "proposeNodeMatch should ignore nodes in matched" $ assertEqual ""
-      [0..6]
-      (observeAll (proposeNodeMatch dpoExample dpoExample (Map.singleton 8 8)))
-  {-, testCase "edgeMatchesFor simple graph" $ assertEqual ""-}
-      {-[[mkEdge "E1" [2] [2,3]]]-}
-      {-(observeAll $ proposeEdgeMatchesFor contextGraph patternGraph Map.empty 1)-}
   ]
 
 testRewritingFunctions = testGroup "test rewriting functions" simpleTests
