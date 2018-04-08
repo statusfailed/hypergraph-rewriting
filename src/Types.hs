@@ -3,6 +3,14 @@ module Types where
 import Data.Vector (Vector(..))
 import qualified Data.Vector as Vector
 
+import Control.Monad.Logic
+import Control.Monad.State
+
+type LogicState s = StateT s Logic
+
+runLogicState :: LogicState s a -> s -> [(a, s)]
+runLogicState m s = observeAll (runStateT m s)
+
 -- | Directed hyperedges, with labels of type 'a'
 data Hyperedge a = Hyperedge
   { val :: a
