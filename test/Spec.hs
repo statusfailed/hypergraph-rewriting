@@ -15,7 +15,8 @@ import qualified Data.Map.Strict as Map
 import Data.Foldable
 
 import TestHypergraph (testHypergraphFunctions)
-import TestMatching (testMatching)
+import TestMatching   (testMatching)
+import TestExpr       (testExpr)
 
 main = defaultMain tests
 
@@ -23,4 +24,5 @@ tests :: TestTree
 tests = testGroup "Tests"
   [ testHypergraphFunctions
   , testMatching
+  , testExpr
   ]
