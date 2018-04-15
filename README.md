@@ -8,3 +8,7 @@ TODO list:
 - [ ] Rendering hypergraphs to SVG
 - [ ] Parsing term expressions
 - [ ] Replacing patterns
+
+Cleanup:
+
+- [ ] remove `nub` call from taskBfs - figure out bug
