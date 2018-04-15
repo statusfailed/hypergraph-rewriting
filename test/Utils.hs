@@ -9,4 +9,4 @@ testMatches
   :: (Ord e, Ord v)
   => String -> ([Matching] -> Bool) -> Hypergraph v e -> Hypergraph v e -> TestTree
 testMatches msg f graph pattern =
-  testCase msg . assertBool msg . f $ match graph pattern
+  testCase msg . assertBool "" . f $ match graph pattern

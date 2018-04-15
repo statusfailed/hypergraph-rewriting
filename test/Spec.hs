@@ -17,6 +17,7 @@ import Data.Foldable
 import TestHypergraph (testHypergraphFunctions)
 import TestMatching   (testMatching)
 import TestExpr       (testExpr)
+import TestPaper      (testPaper)
 
 main = defaultMain tests
 
@@ -25,4 +26,5 @@ tests = testGroup "Tests"
   [ testHypergraphFunctions
   , testMatching
   , testExpr
+  , testPaper
   ]
