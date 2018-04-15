@@ -22,6 +22,7 @@ import Data.Graph (stronglyConnComp, flattenSCC)
 
 data Expr e
   = Id
+  | Twist
   | Generator e
   | Seq (Expr e) (Expr e)
   | Par (Expr e) (Expr e)
@@ -30,6 +31,7 @@ data Expr e
 -- | Calculate "type" of expression given a function returning types of generators.
 typeOf :: (MonadPlus m) => (e -> m (Int, Int)) -> Expr e -> m (Int, Int)
 typeOf f Id = return (1, 1)
+typeOf f Twist = return (2, 2)
 typeOf f (Generator e) = f e
 typeOf f (Seq x y) = do
   (i,j) <- typeOf f x
@@ -79,7 +81,15 @@ build
 build f (ls, rs) Id = do
   case (ls, rs) of
     (l:[], r:[]) -> modify $ addEquality (head ls) (head rs)
-    _ -> error $ "The unpossible happened: " ++ show (ls, rs)
+    _ -> mzero
+
+-- | Twist is similar
+build f (ls, rs) Twist = do
+  case (ls, rs) of
+    (l1:l2:[], r1:r2:[]) -> do
+      modify $ addEquality l1 r2
+      modify $ addEquality l2 r1
+    _ -> mzero
 
 -- | Build a generator: must have same type as passed-in context (ls, rs)
 build f (ls, rs) t@(Generator e) = do

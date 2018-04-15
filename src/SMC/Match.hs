@@ -11,7 +11,7 @@ import Data.Foldable
 import Data.Map.Strict (Map(..))
 import qualified Data.Map.Strict as Map
 
-import Data.Set (Set(..))
+import Data.Set (Set(..), (\\))
 import qualified Data.Set as Set
 
 import Data.Vector (Vector(..), (!), (!?))
@@ -24,6 +24,8 @@ import Data.Maybe (catMaybes)
 
 import Data.Bimap (Bimap(..))
 import qualified Data.Bimap as Bimap
+
+import Data.List (nub)
 
 import SMC.Hypergraph
 import SMC.Util (bsum)
@@ -117,6 +119,23 @@ edgeEquiv m xs ys
 data MatchTask = V Int | E Int
   deriving(Eq, Ord, Read, Show)
 
+-- Update a 'Matching' from a MatchTask and current 'Matching'
+updateMatching
+  :: (Eq e, MonadLogic m)
+  => Hypergraph v e -> Hypergraph v e -> MatchTask -> Matching -> m Matching
+updateMatching g p t m@(Matching matchedNodes matchedEdges) = do
+  case t of
+    V pn -> do
+      -- propose unmatched nodes
+      gn <- bsum $ filter (not . flip Bimap.memberR matchedNodes) (nodeNames g)
+      guard (matchNode g p m pn gn)
+      return $ Matching (Bimap.insert pn gn matchedNodes) matchedEdges
+
+    E pe -> do
+      ge <- bsum $ filter (not . flip Bimap.memberR matchedEdges) (edgeNames g)
+      guard (matchEdge g p m pe ge)
+      return $ Matching matchedNodes (Bimap.insert pe ge matchedEdges)
+
 
 -- | 'match graph pattern' finds an instance of 'pattern' within 'graph', returned as
 -- a bidirectional mapping of node and edge IDs.
@@ -137,26 +156,13 @@ match' g p = step emptyMatching where
 match :: (Ord e, Ord v) => Hypergraph v e -> Hypergraph v e -> [Matching]
 match g p = fmap fst $ runLogicState (match' g p) $ taskBfs p
 
--- Update a matching from a MatchTask and current 'Matching'
-updateMatching g p t m@(Matching matchedNodes matchedEdges) = do
-  case t of
-    V pn -> do
-      -- propose unmatched nodes
-      gn <- bsum $ filter (not . flip Bimap.memberR matchedNodes) (nodeNames g)
-      guard (matchNode g p m pn gn)
-      return $ Matching (Bimap.insert pn gn matchedNodes) matchedEdges
 
-    E pe -> do
-      ge <- bsum $ filter (not . flip Bimap.memberR matchedEdges) (edgeNames g)
-      guard (matchEdge g p m pe ge)
-      return $ Matching matchedNodes (Bimap.insert pe ge matchedEdges)
-
-
-------------
+------------ Breadth-First traversals -----------
 
 type BfsState = (Set MatchTask, Seq MatchTask, Seq MatchTask)
 
--- Immediate successors of the current task
+-- Immediate successors of the current task.
+-- NOTE: this never goes "backwards" - only moves along directed edges
 taskSucc :: Hypergraph v e -> MatchTask -> Vector MatchTask
 taskSucc g (E e) = maybe Vector.empty (fmap V . cod) (edges g !? e)
 taskSucc g (V v)
@@ -169,7 +175,7 @@ taskBfs' g = do
   (visited, todo, done) <- get
   case Seq.viewl todo of
     Seq.EmptyL -> return ()
-    h :< t     -> do
+    h :< _     -> do
       forM_ (taskSucc g h) (addTask visited)
       complete h
       modify (over _2 $ Seq.drop 1)
@@ -181,10 +187,12 @@ taskBfs' g = do
     complete t  = modify (over _3 (|> t)) >> modify (over _1 $ Set.insert t)
 
 -- | Breadth-first traversal of a Hypergraph, returning a list of nodes and edges.
+-- Starts from the "left dangling wires" of the graph
 taskBfs :: Hypergraph v e -> [MatchTask]
 taskBfs g
   | Vector.null (nodes g) = []
-  | otherwise = toList . view _3 $ execState (taskBfs' g) s
+  | otherwise = nub . toList . view _3 $ execState (taskBfs' g) s
   where
-    -- start at first vertex
-    s = (Set.empty, Seq.singleton (V 0), Seq.empty)
+    -- start at the "left dangling wires" of the graph
+    s = (Set.empty, start, Seq.empty)
+    start = Seq.fromList . fmap V . toList . fst $ freeNodes g

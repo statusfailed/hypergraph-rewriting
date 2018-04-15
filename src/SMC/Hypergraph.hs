@@ -7,10 +7,10 @@ import Control.Monad.State
 import qualified Data.Map.Strict as Map
 import Data.Map.Strict (Map(..))
 
-import Data.List
+import Data.List hiding ((\\))
 import Data.Foldable
 
-import Data.Set (Set(..))
+import Data.Set (Set(..), (\\))
 import qualified Data.Set as Set
 
 import Data.Vector (Vector(..))
@@ -97,6 +97,8 @@ reachable g vs = go Set.empty (vs >>= neighbours g) where
 
 
 -- Is a subgraph convex?
+-- TODO BUG: example 5.3 in paper; *no nodes* in context! only edges. Need to
+-- check both!
 --
 -- let A be the set of all context nodes reachable from inside the subgraph
 -- let B be the set of all subgraph nodes reachable from A
@@ -126,3 +128,16 @@ convex' g vs = b
 -- | Convexity predicate
 convex :: Ord v => Hypergraph v e -> [Int] -> Bool
 convex g vs = null (convex' g vs)
+
+------------
+
+-- | Free nodes on the left and right
+-- i.e. only those nodes which don't appear in both a domain and codomain of some edges.
+freeNodes :: Hypergraph v e -> (Set Int, Set Int)
+freeNodes g@(Hypergraph ns es) = (free \\ cs, free \\ ds)
+  where
+    f g = Set.fromList . toList $ es >>= g
+    ds = f dom
+    cs = f cod
+    ns = Set.fromList (nodeNames g)
+    free = ns \\ Set.intersection ds cs
