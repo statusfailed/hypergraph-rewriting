@@ -12,6 +12,7 @@ import Data.List (sort, inits, tails)
 import Data.Map.Strict (Map(..))
 import qualified Data.Map.Strict as Map
 
+import qualified Data.Set as Set
 import qualified Data.Bimap as Bimap
 
 import Data.Foldable
@@ -24,6 +25,10 @@ import Utils (testMatches)
 
 testPaper = testGroup "examples from paper" unitTests
 
+matchingToVE :: Matching -> [VE]
+matchingToVE (Matching nodes edges) =
+  fmap V (Bimap.elems nodes) ++ fmap E (Bimap.elems edges)
+
 unitTests =
   -- Test that matching the LHS of example 4.8 in its context yields exactly one match;
   -- this tests matching *without* the convexity and boundary complement restrictions
@@ -33,10 +38,10 @@ unitTests =
   -- assuming no convexity condition.
   , testMatches "example 5.3" ((==1) . length) ebGraph ebLHS
 
-  -- Test for example 5.3, but with ensure convexity condition is true
-  , let f g (Matching ns es) = convex g . fmap snd . Bimap.toList $ ns
-        h = filter (f ebGraph)
-    in  testMatches "example 5.3 (convex)" ((==0) . length . h) ebGraph ebLHS
+  -- Test for example 5.3, but check that there are no matches after applying
+  -- convexity condition
+  , let f = filter (convexVE ebGraph . matchingToVE)
+    in  testMatches "example 5.3 (convex)" ((==0) . length . f) ebGraph ebLHS
   ]
 
 ------------ Example 4.8 -------------
@@ -47,7 +52,7 @@ unitTests =
 data EA = EA1 | EA2 | EA3
   deriving(Eq, Ord, Read, Show)
 
--- | Map an element of sigma for example 48 to its type
+-- | Map an element of sigma for example 4.8 to its type
 eaType :: EA -> (Int, Int)
 eaType x = case x of
   EA1    -> (0, 1)
