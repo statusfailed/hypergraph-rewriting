@@ -12,3 +12,4 @@ TODO list:
 Cleanup:
 
 - [ ] remove `nub` call from taskBfs - figure out bug
+- [ ] remove all "non-`VE`" variants of `neighbours`, `reachable`, and `convex`.

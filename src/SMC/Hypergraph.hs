@@ -13,7 +13,7 @@ import Data.Foldable
 import Data.Set (Set(..), (\\))
 import qualified Data.Set as Set
 
-import Data.Vector (Vector(..))
+import Data.Vector (Vector(..), (!))
 import qualified Data.Vector as Vector
 
 import SMC.Util (bsum)
@@ -44,6 +44,9 @@ data Hypergraph v e = Hypergraph
 instance Functor (Hypergraph v) where
   fmap f (Hypergraph n e) = Hypergraph n (fmap (fmap f) e)
 
+-- | Disjoint union of Vertices and Edges.
+data VE = V Int | E Int
+  deriving(Eq, Ord, Read, Show)
 
 -- TODO: smart constructor; check vertexes are a superset of those referenced in
 -- edges.
@@ -95,6 +98,36 @@ reachable g vs = go Set.empty (vs >>= neighbours g) where
       vs' = Set.union visited (Set.fromList current)
       cs' = filter (not . flip Set.member vs') $ neighbours g =<< current
 
+-- | Generalised neighbours', finds nodes and edges neighbouring an initial set
+-- of nodes and edges.
+neighboursVE :: Hypergraph v e -> [VE] -> [VE]
+neighboursVE g ves = ves >>= f
+  where
+    f (V v) =
+      fmap (E . fst) . filter (inDomain v . snd) . zipWith (,) [0..] . toList $ edges g
+    f (E e) = fmap V . toList . cod $ edges g ! e
+
+-- | Edges and Vertices reachable from an initial set of edges and vertices.
+-- An edge is not counted as "reachable" from itself, unless there is a path
+-- back to it.
+reachableVE :: Hypergraph v e -> [VE] -> Set VE
+reachableVE g ves = go g Set.empty (neighboursVE g ves) where
+  go :: Hypergraph v e -> Set VE -> [VE] -> Set VE
+  go g visited current
+    | null current = visited
+    | otherwise =
+        let visited' = Set.union visited $ Set.fromList current
+            current' = filter (flip Set.notMember visited) (neighboursVE g current)
+        in go g visited' current'
+
+convexVE' :: Hypergraph v e -> [VE] -> Set VE
+convexVE' g ves = c where
+  a = reachableVE g ves
+  b = reachableVE g (toList a)
+  c = Set.filter (flip Set.member $ Set.fromList ves) b
+
+convexVE :: Hypergraph v e -> [VE] -> Bool
+convexVE g = Set.null . convexVE' g
 
 -- Is a subgraph convex?
 -- TODO BUG: example 5.3 in paper; *no nodes* in context! only edges. Need to

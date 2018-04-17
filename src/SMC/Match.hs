@@ -116,13 +116,10 @@ edgeEquiv m xs ys
 
 ------------
 
-data MatchTask = V Int | E Int
-  deriving(Eq, Ord, Read, Show)
-
--- Update a 'Matching' from a MatchTask and current 'Matching'
+-- Update a 'Matching' from a VE and current 'Matching'
 updateMatching
   :: (Eq e, MonadLogic m)
-  => Hypergraph v e -> Hypergraph v e -> MatchTask -> Matching -> m Matching
+  => Hypergraph v e -> Hypergraph v e -> VE -> Matching -> m Matching
 updateMatching g p t m@(Matching matchedNodes matchedEdges) = do
   case t of
     V pn -> do
@@ -143,7 +140,7 @@ match'
   :: (Eq e, Ord e, Eq v, Ord v)
   => Hypergraph v e
   -> Hypergraph v e
-  -> LogicState [MatchTask] Matching
+  -> LogicState [VE] Matching
 match' g p = step emptyMatching where
 
   -- Run until queue exhausted
@@ -159,11 +156,11 @@ match g p = fmap fst $ runLogicState (match' g p) $ taskBfs p
 
 ------------ Breadth-First traversals -----------
 
-type BfsState = (Set MatchTask, Seq MatchTask, Seq MatchTask)
+type BfsState = (Set VE, Seq VE, Seq VE)
 
 -- Immediate successors of the current task.
 -- NOTE: this never goes "backwards" - only moves along directed edges
-taskSucc :: Hypergraph v e -> MatchTask -> Vector MatchTask
+taskSucc :: Hypergraph v e -> VE -> Vector VE
 taskSucc g (E e) = maybe Vector.empty (fmap V . cod) (edges g !? e)
 taskSucc g (V v)
   = fmap (E . fst)
@@ -188,7 +185,7 @@ taskBfs' g = do
 
 -- | Breadth-first traversal of a Hypergraph, returning a list of nodes and edges.
 -- Starts from the "left dangling wires" of the graph
-taskBfs :: Hypergraph v e -> [MatchTask]
+taskBfs :: Hypergraph v e -> [VE]
 taskBfs g
   | Vector.null (nodes g) = []
   | otherwise = nub . toList . view _3 $ execState (taskBfs' g) s
