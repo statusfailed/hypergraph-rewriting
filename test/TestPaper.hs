@@ -32,11 +32,11 @@ matchingToVE (Matching nodes edges) =
 unitTests =
   -- Test that matching the LHS of example 4.8 in its context yields exactly one match;
   -- this tests matching *without* the convexity and boundary complement restrictions
-  [ testMatches "example 4.8" ((==1) . length) eaGraph eaLHS
+  [ testMatches "example 4.8" (\ms -> length ms == 1) eaGraph eaLHS
 
   -- Same as above, but for example 5.3. Ensure exactly one match for LHS,
   -- assuming no convexity condition.
-  , testMatches "example 5.3" ((==1) . length) ebGraph ebLHS
+  , testMatches "example 5.3" (\ms -> length ms == 1) ebGraph ebLHS
 
   -- Test for example 5.3, but check that there are no matches after applying
   -- convexity condition
@@ -47,8 +47,7 @@ unitTests =
 ------------ Example 4.8 -------------
 
 -- | Signature for Example 4.8
--- the "A" in EA is just to distinguish from Example 5.3 later. Kinda hacky I
--- know!
+-- the "A" in EA is just to distinguish from Example 5.3 later.
 data EA = EA1 | EA2 | EA3
   deriving(Eq, Ord, Read, Show)
 
