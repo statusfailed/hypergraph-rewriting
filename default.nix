@@ -5,16 +5,20 @@ let
   inherit (nixpkgs) pkgs;
 
   f = { mkDerivation, array, base, bimap, containers, exceptions
-      , lens, logict, mtl, stdenv, tasty, tasty-hunit, vector
+      , lens, logict, lucid, miso, mtl, stdenv, tasty, tasty-hunit
+      , vector
       }:
       mkDerivation {
         pname = "hypergraph-rewriting";
         version = "0.1.0.0";
         src = ./.;
         libraryHaskellDepends = [
-          array base bimap containers exceptions lens logict mtl vector
+          array base bimap containers exceptions lens logict lucid miso mtl
+          vector
         ];
-        testHaskellDepends = [ base containers logict tasty tasty-hunit ];
+        testHaskellDepends = [
+          base bimap containers logict tasty tasty-hunit
+        ];
         license = stdenv.lib.licenses.mit;
       };
 

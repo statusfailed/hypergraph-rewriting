@@ -20,10 +20,23 @@ library
     , SMC.Hypergraph
     , SMC.Match
     , SMC.Expr
+    , SMC.Render
   build-depends:
-      base, logict, containers, bimap, array, mtl, vector, lens, exceptions
+      base
+    , logict
+    , containers
+    , bimap
+    , array
+    , mtl
+    , vector
+    , lens
+    , exceptions
+    , miso
+    , lucid
   hs-source-dirs:      src
   default-language:    Haskell2010
+
+--executable hypergraph-rewriting-js
 
 test-suite tests
   type: exitcode-stdio-1.0
