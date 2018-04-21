@@ -25,6 +25,7 @@ library
       base
     , logict
     , containers
+    , text
     , bimap
     , array
     , mtl
@@ -48,6 +49,7 @@ test-suite tests
       base
     , hypergraph-rewriting
     , containers
+    , text
     , bimap
     , logict
     , tasty
