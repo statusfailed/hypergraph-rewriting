@@ -89,8 +89,8 @@ place :: Hypergraph v e -> Map VE Coords
 place g = Map.fromList . concat $ zipWith f [1..] (slices g)
   where
     f x col =
-      let cumulative = scanl1Of (traverse . _2) (+) . fmap (,1) $ col
-      in over (traverse . _2) (Coords x) cumulative
+      let cumulative = scanl1Of (traverse . _2) (+) . fmap (,drawSize :: Int) $ col
+      in over (traverse . _2) (Coords $ drawSize*x) cumulative
 
 place2 :: Hypergraph v e -> Map VE Coords
 place2 g = Map.fromList . concat $ zipWith f [0..] cols
@@ -184,7 +184,7 @@ edgesAndNodes g m = fmap (uncurry $ drawVE g) (Map.toList m)
 toView :: (Show v, Show e) => (e -> (Int, Int)) -> Hypergraph v e -> View action
 toView f g = svg_ [width_ w, height_ h] $ edgesAndNodes g m ++ drawWires g m
   where
-    m = place2 g
+    m = place g
     w = mshow $ 100 * length (slices g)
     h = mshow $ 100 * (maximum . fmap length $ slices g)
 
