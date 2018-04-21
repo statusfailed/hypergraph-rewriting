@@ -20,17 +20,15 @@ import Data.String
 import Miso (View(..))
 import qualified Miso.Html as Html
 import Miso.Svg as Svg
+import qualified Miso.String as Miso
 
 import Control.Lens
-
-import Data.Text (Text(..))
-import qualified Data.Text as Text
 
 import Data.List (sortBy, groupBy)
 import Data.Function (on)
 
-mshow :: Int -> Text
-mshow = Text.pack . show
+mshow :: Show a => a -> Miso.MisoString
+mshow = Miso.ms . show
 
 drawPad = 5
 drawSize = 50
@@ -128,14 +126,14 @@ wireStraight :: (Int, Int) -> (Int, Int) -> View action
 wireStraight (x1, y1) (x2, y2) = line_
   [ x1_ (mshow x1), y1_ (mshow y1)
   , x2_ (mshow x2), y2_ (mshow y2)
-  , stroke_ "red", strokeWidth_ "2"
+  , stroke_ "black", strokeWidth_ "2"
   ]
   []
 
 bezierConnector :: (Int, Int) -> (Int, Int) -> View action
 bezierConnector (x, y) (a, b) =
   path_
-    [ d_ (Text.pack svgStr), fill_ "transparent", stroke_ "red"
+    [ d_ (mshow svgStr), fill_ "transparent", stroke_ "#2B4FFC"
     , strokeWidth_ "2" 
     ] []
   where
@@ -187,28 +185,3 @@ toView f g = svg_ [width_ w, height_ h] $ edgesAndNodes g m ++ drawWires g m
     m = place g
     w = mshow $ 100 * length (slices g)
     h = mshow $ 100 * (maximum . fmap length $ slices g)
-
-go :: IO ()
-go = writeFile "/home/sf/foo.html" . show $ page
-  where
-    page = Html.nodeHtml "html" [s] [Html.body_ [] [toView ebType ebGraph]]
-    s = Html.style_ $ Map.fromList [("font-family", "sans")]
-
-------------- Debugging -----------
-
-data EB = EB1 | EB2 | EB3 | EB4
-  deriving (Eq, Ord, Read, Show)
-
-ebType :: EB -> (Int, Int)
-ebType x = case x of
-  EB1 -> (1, 2)
-  EB2 -> (2, 1)
-  EB3 -> (1, 1)
-  EB4 -> (1, 1)
-
-ebGraph :: Hypergraph Int EB
-Just ebGraph = toGraph (return . ebType) expr
-  where
-    expr = foldl1 Seq [Generator EB1, Par (Generator EB3) Id, Generator EB2]
-
-g=ebGraph
