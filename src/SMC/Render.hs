@@ -32,6 +32,10 @@ import Data.Function (on)
 mshow :: Int -> Text
 mshow = Text.pack . show
 
+drawPad = 5
+drawSize = 50
+halfDrawSize = drawSize `div` 2
+
 initialNodes :: Hypergraph v e -> [VE]
 initialNodes g = fmap V . filter f . nodeNames $ g
   where f x = not $ Vector.any (x `inCodomain`) (edges g)
@@ -88,42 +92,35 @@ place g = Map.fromList . concat $ zipWith f [1..] (slices g)
       let cumulative = scanl1Of (traverse . _2) (+) . fmap (,1) $ col
       in over (traverse . _2) (Coords x) cumulative
 
-
 place2 :: Hypergraph v e -> Map VE Coords
-place2 g = Map.fromList . concat $ zipWith f [0..] xs
+place2 g = Map.fromList . concat $ zipWith f [0..] cols
   where
-    xs = slices g
-    maxDepth = 50 * maximum (fmap length xs) -- TODO
-    f x col = zip col . fmap (Coords x) $ portPos 0 maxDepth (length col)
+    cols = slices g
+    maxDepth = drawSize * maximum (fmap length cols)
+    f x col =
+      let depth = drawSize * length col
+      in zip col . fmap (Coords $ drawSize*x) $ portPos 0 depth (length col)
 
 -- TODO: get rid of gross duplication here :-D
 drawWiresOfDom :: Hypergraph v e -> Map VE Coords -> Int -> [View action]
-drawWiresOfDom g m ei = zipWith f (portPos 5 50 numPorts) ndis
+drawWiresOfDom g m ei = zipWith f (portPos drawPad drawSize numPorts) ndis
   where
     edge = (edges g ! ei)
     numPorts = Vector.length (dom edge)
-    (Coords ex' ey') = m Map.! (E ei)
+    (Coords ex ey) = m Map.! (E ei)
     ndis = fmap ((m Map.!) . V) $ toList (dom edge)
-    f ydelta (Coords nx' ny') =
-      let ex = ex'*50
-          ey = ey'*50 + ydelta
-          nx = nx'*50 + 25
-          ny = ny'*50 + 25
-      in bezierConnector (nx, ny) (ex, ey)
+    f ydelta (Coords nx ny) =
+      bezierConnector (nx+halfDrawSize, ny+halfDrawSize) (ex, ey + ydelta)
 
 drawWiresOfCod :: Hypergraph v e -> Map VE Coords -> Int -> [View action]
-drawWiresOfCod g m ei = zipWith f (portPos 5 50 numPorts) ndis
+drawWiresOfCod g m ei = zipWith f (portPos drawPad drawSize numPorts) ndis
   where
     edge = (edges g ! ei)
     numPorts = Vector.length (cod edge)
-    (Coords ex' ey') = m Map.! (E ei)
+    (Coords ex ey) = m Map.! (E ei)
     ndis = fmap ((m Map.!) . V) $ toList (cod edge)
-    f ydelta (Coords nx' ny') =
-      let ex = ex'*50
-          ey = ey'*50 + ydelta
-          nx = nx'*50 + 25
-          ny = ny'*50 + 25
-      in bezierConnector (nx, ny) (ex, ey)
+    f ydelta (Coords nx ny) =
+      bezierConnector (nx+halfDrawSize, ny+halfDrawSize) (ex+drawSize, ey + ydelta)
 
 drawWiresOf g m ei = drawWiresOfDom g m ei ++ drawWiresOfCod g m ei
 
@@ -143,7 +140,7 @@ bezierConnector (x, y) (a, b) =
     ] []
   where
     midX = (a - x) `div` 2
-    control1 = (x + 2*midX, y)
+    control1 = (x + midX, y)
     control2 = (a - midX, b)
     showPair (x,y) = show x ++ " " ++ show y
     svgStr = "M " ++ showPair (x,y) ++ " C " ++
@@ -155,22 +152,22 @@ drawWires g m = edgeNames g >>= drawWiresOf g m
 drawVE :: Show e => Hypergraph v e -> VE -> Coords -> View action
 drawVE g (V i) (Coords x y) =
   circle_
-    [ cx_ (mshow $ x*50 + 25), cy_ (mshow $ y*50 + 25)
+    [ cx_ (mshow $ x + halfDrawSize), cy_ (mshow $ y + halfDrawSize)
     , r_ "3", fill_ "black"] []
 drawVE g (E i) (Coords x y) =
   g_ []
     [ rect_
         [ x_ x', y_ y' 
-        , width_ "50", height_ "40"
+        , width_ (mshow drawSize), height_ (mshow $ drawSize - 2*drawPad)
         , fill_ "white", stroke_ "black", rx_ "5", ry_ "5"
         ] []
-    , text_ [x_ (mshow (x*50 + 5)), y_ (mshow (y*50 + 30))]
+    , text_ [x_ (mshow (x + 5)), y_ (mshow (y + (drawSize `div` 2) + drawPad))]
         [ fromString . show . val . (! i) . edges $ g ]
     ]
   where
-    x' = mshow $ x*50
-    y' = mshow $ y*50 + 5
-    yt = mshow $ y*50
+    x' = mshow $ x
+    y' = mshow $ y + 5
+    yt = mshow $ y
 
 edgesAndNodes :: Show e => Hypergraph v e -> Map VE Coords -> [View action]
 edgesAndNodes g m = fmap (uncurry $ drawVE g) (Map.toList m)
@@ -185,9 +182,9 @@ edgesAndNodes g m = fmap (uncurry $ drawVE g) (Map.toList m)
 --
 -- Edges?
 toView :: (Show v, Show e) => (e -> (Int, Int)) -> Hypergraph v e -> View action
-toView f g = svg_ [width_ w, height_ h] $ drawWires g m ++ edgesAndNodes g m
+toView f g = svg_ [width_ w, height_ h] $ edgesAndNodes g m ++ drawWires g m
   where
-    m = place g
+    m = place2 g
     w = mshow $ 100 * length (slices g)
     h = mshow $ 100 * (maximum . fmap length $ slices g)
 
@@ -213,3 +210,5 @@ ebGraph :: Hypergraph Int EB
 Just ebGraph = toGraph (return . ebType) expr
   where
     expr = foldl1 Seq [Generator EB1, Par (Generator EB3) Id, Generator EB2]
+
+g=ebGraph
