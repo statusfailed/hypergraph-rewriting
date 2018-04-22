@@ -1,6 +1,9 @@
 {-# LANGUAGE FlexibleContexts #-}
 {-# LANGUAGE TupleSections #-}
+{-# LANGUAGE DeriveGeneric #-}
 module SMC.Expr where
+
+import GHC.Generics
 
 import Control.Monad
 import Control.Monad.State
@@ -26,7 +29,7 @@ data Expr e
   | Generator e
   | Seq (Expr e) (Expr e)
   | Par (Expr e) (Expr e)
-  deriving(Eq, Ord, Read, Show)
+  deriving(Eq, Ord, Read, Show, Generic)
 
 -- | Calculate "type" of expression given a function returning types of generators.
 typeOf :: (MonadPlus m) => (e -> m (Int, Int)) -> Expr e -> m (Int, Int)
@@ -139,8 +142,7 @@ toGraph' f e = do
 
 
 toGraph
-  :: Show e
-  => (e -> Maybe (Int, Int)) -> Expr e -> Maybe (Hypergraph Int e)
+  :: (e -> Maybe (Int, Int)) -> Expr e -> Maybe (Hypergraph Int e)
 toGraph f e =
   case execStateT (toGraph' (g . f) e) s of
     Just s  -> Just (buildStateToGraph s)
@@ -151,7 +153,7 @@ toGraph f e =
 
 -- | Turn a BuildState into a Graph
 -- TODO: renumber here!
-buildStateToGraph :: Show e => BuildState e -> Hypergraph Int e
+buildStateToGraph :: BuildState e -> Hypergraph Int e
 buildStateToGraph bs = mkGraph vs (reverse es)
   where
     (BuildState n es eqs) = renumber bs
@@ -165,7 +167,7 @@ buildStateToGraph bs = mkGraph vs (reverse es)
 -- 2. Number each class [0..m]
 -- 3. Generate a map (NodeId -> EquivalenceClassNumber)
 -- 4. Replace each node in the graph with its equivalence class
-renumber :: Show e => BuildState e -> BuildState e
+renumber :: BuildState e -> BuildState e
 renumber s@(BuildState n es eqs) =
   BuildState (length sccs) (fmap (renumberEdge m) es) []
   where

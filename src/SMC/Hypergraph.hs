@@ -1,4 +1,7 @@
+{-# LANGUAGE DeriveGeneric #-}
 module SMC.Hypergraph where
+
+import GHC.Generics
 
 import Control.Monad
 import Control.Monad.Logic
@@ -28,7 +31,7 @@ data Hyperedge a = Hyperedge
   { val :: a
   , dom :: Vector Int
   , cod :: Vector Int
-  } deriving(Eq, Ord, Read, Show)
+  } deriving(Eq, Ord, Read, Show, Generic)
 
 instance Functor Hyperedge where
   fmap f (Hyperedge a d c) = Hyperedge (f a) d c
@@ -38,7 +41,7 @@ instance Functor Hyperedge where
 data Hypergraph v e = Hypergraph
   { nodes :: Vector v
   , edges :: Vector (Hyperedge e)
-  } deriving(Eq, Ord, Read, Show)
+  } deriving(Eq, Ord, Read, Show, Generic)
 
 -- Functor on edge type
 instance Functor (Hypergraph v) where
@@ -46,7 +49,7 @@ instance Functor (Hypergraph v) where
 
 -- | Disjoint union of Vertices and Edges.
 data VE = V Int | E Int
-  deriving(Eq, Ord, Read, Show)
+  deriving(Eq, Ord, Read, Show, Generic)
 
 -- TODO: smart constructor; check vertexes are a superset of those referenced in
 -- edges.

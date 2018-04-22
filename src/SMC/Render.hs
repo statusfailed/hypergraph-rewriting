@@ -84,11 +84,9 @@ portPos pad height numPorts = fmap (\i -> pad + i*delta) [1..numPorts]
     delta = boxHeight `div` (numPorts + 1)
 
 place :: Hypergraph v e -> Map VE Coords
-place g = Map.fromList . concat $ zipWith f [1..] (slices g)
+place g = Map.fromList . concat $ zipWith f [0..] (slices g)
   where
-    f x col =
-      let cumulative = scanl1Of (traverse . _2) (+) . fmap (,drawSize :: Int) $ col
-      in over (traverse . _2) (Coords $ drawSize*x) cumulative
+    f x col = zipWith (,) col . fmap (Coords $ drawSize*x) $ fmap (*drawSize) [0..]
 
 place2 :: Hypergraph v e -> Map VE Coords
 place2 g = Map.fromList . concat $ zipWith f [0..] cols
@@ -133,7 +131,7 @@ wireStraight (x1, y1) (x2, y2) = line_
 bezierConnector :: (Int, Int) -> (Int, Int) -> View action
 bezierConnector (x, y) (a, b) =
   path_
-    [ d_ (mshow svgStr), fill_ "transparent", stroke_ "#2B4FFC"
+    [ d_ (Miso.ms svgStr), fill_ "transparent", stroke_ "#2B4FFC"
     , strokeWidth_ "2" 
     ] []
   where
@@ -147,28 +145,43 @@ bezierConnector (x, y) (a, b) =
 drawWires :: Hypergraph v e -> Map VE Coords -> [View action]
 drawWires g m = edgeNames g >>= drawWiresOf g m
 
-drawVE :: Show e => Hypergraph v e -> VE -> Coords -> View action
-drawVE g (V i) (Coords x y) =
+drawVE
+  :: Map VE String  -- ^ Stroke colours
+  -> (e -> String)  -- ^ How to display an edge
+  -> Hypergraph v e -- ^ graph we're drawing
+  -> VE             -- ^ Current item to draw
+  -> Coords         -- ^ Position of item
+  -> View action
+drawVE strokes showE g (V i) (Coords x y) =
   circle_
     [ cx_ (mshow $ x + halfDrawSize), cy_ (mshow $ y + halfDrawSize)
-    , r_ "3", fill_ "black"] []
-drawVE g (E i) (Coords x y) =
+    , r_ "3", fill_ (Miso.ms col)] []
+  where
+    col = maybe "black" id (Map.lookup (V i) strokes)
+drawVE strokes showE g (E i) (Coords x y) =
   g_ []
     [ rect_
         [ x_ x', y_ y' 
         , width_ (mshow drawSize), height_ (mshow $ drawSize - 2*drawPad)
-        , fill_ "white", stroke_ "black", rx_ "5", ry_ "5"
+        , fill_ "white", stroke_ (Miso.ms col), rx_ "5", ry_ "5"
         ] []
     , text_ [x_ (mshow (x + 5)), y_ (mshow (y + (drawSize `div` 2) + drawPad))]
-        [ fromString . show . val . (! i) . edges $ g ]
+        [ fromString . showE . val . (! i) . edges $ g ]
     ]
   where
     x' = mshow $ x
     y' = mshow $ y + 5
     yt = mshow $ y
+    col = maybe "black" id (Map.lookup (E i) strokes)
 
-edgesAndNodes :: Show e => Hypergraph v e -> Map VE Coords -> [View action]
-edgesAndNodes g m = fmap (uncurry $ drawVE g) (Map.toList m)
+edgesAndNodes
+  :: Map VE String
+  -> (e -> String)
+  -> Hypergraph v e
+  -> Map VE Coords
+  -> [View action]
+edgesAndNodes stroke showE g m =
+  fmap (uncurry $ drawVE stroke showE g) (Map.toList m)
 
 -- | Render a hypergraph as a Miso 'View'.
 --
@@ -179,9 +192,15 @@ edgesAndNodes g m = fmap (uncurry $ drawVE g) (Map.toList m)
 -- 5. Flatten list, draw each element
 --
 -- Edges?
-toView :: (Show v, Show e) => (e -> (Int, Int)) -> Hypergraph v e -> View action
-toView f g = svg_ [width_ w, height_ h] $ edgesAndNodes g m ++ drawWires g m
+toView
+  :: Map VE String     -- ^ Stroke colours of each item
+  -> (e -> String)     -- ^ How to display an edge
+  -> (e -> (Int, Int)) -- ^ Type of an edge
+  -> Hypergraph v e
+  -> (View action)
+toView strokes showE f g =
+  svg_ [width_ w, height_ h] $ edgesAndNodes strokes showE g m ++ drawWires g m
   where
     m = place g
-    w = mshow $ 100 * length (slices g)
-    h = mshow $ 100 * (maximum . fmap length $ slices g)
+    w = mshow $ drawSize * length (slices g)
+    h = mshow $ drawSize * (maximum . fmap length $ slices g)
