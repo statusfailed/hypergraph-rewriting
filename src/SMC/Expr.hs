@@ -14,7 +14,7 @@ import SMC.Hypergraph
 import SMC.Match
 
 import Data.Function (on)
-import Data.List (sort, groupBy)
+import Data.List (sort, sortBy, groupBy, minimum)
 
 import Data.Map (Map(..), (!))
 import qualified Data.Map as Map
@@ -159,14 +159,23 @@ buildStateToGraph bs = mkGraph vs (reverse es)
     (BuildState n es eqs) = renumber bs
     vs = [0..n-1]
 
+----------- Abandon hope all ye who read below here -------------
+--
+-- no seriously this all needs a rewrite realy badly. "renumber" is just awful.
+-- sorry I guess.
+
 -- | Map a BuildState with a set of node equalities into one with no equalities
 -- by renumbering all the nodes.
 -- 0. For n nodes
--- 1. Generate set of m < n equivalence classes (the strongly connected
---    components)
+-- 1. Generate set of m <= n equivalence classes (the strongly connected
+--    components of the graph where two nodes are bidirectionally connected if
+--    equal)
 -- 2. Number each class [0..m]
 -- 3. Generate a map (NodeId -> EquivalenceClassNumber)
 -- 4. Replace each node in the graph with its equivalence class
+--
+-- >>> renumber $ BuildState 4 [] [(0,1), (0,2), (2,3), (3,1)]
+-- ... BuildState {numVars = 1, newEdges = [], equalities = []}
 renumber :: BuildState e -> BuildState e
 renumber s@(BuildState n es eqs) =
   BuildState (length sccs) (fmap (renumberEdge m) es) []
@@ -176,10 +185,13 @@ renumber s@(BuildState n es eqs) =
     g (i,j) = [(i,j), (j,i)]
     eqs' = (eqs >>= g) ++ (let ixs = [0..n-1] in zip ixs ixs)
 
+    -- put into right shape for stronglyConnComp: each node + all the other
+    -- nodes it connects to.
     f pairs = let i = fst (head pairs) in (i, i, fmap snd pairs)
     xs = fmap f . groupBy ( (==) `on` fst ) . sort $ eqs'
 
-    sccs = zipWith (,) [0..] . fmap flattenSCC . stronglyConnComp $ xs
+    reorder = sortBy (compare `on` minimum)
+    sccs = zip [0..] . reorder . fmap flattenSCC . stronglyConnComp $ xs
 
     -- mapping from NodeId -> ConnectedComponent
     m :: Map Int Int
