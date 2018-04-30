@@ -153,9 +153,13 @@ drawVE
   -> Coords         -- ^ Position of item
   -> View action
 drawVE strokes showE g (V i) (Coords x y) =
-  circle_
-    [ cx_ (mshow $ x + halfDrawSize), cy_ (mshow $ y + halfDrawSize)
-    , r_ "3", fill_ (Miso.ms col)] []
+  g_ []
+    [ circle_
+        [ cx_ (mshow $ x + halfDrawSize), cy_ (mshow $ y + halfDrawSize)
+        , r_ "3", fill_ (Miso.ms col)] []
+    , text_ [x_ (mshow $ x + halfDrawSize), y_ (mshow $ y + halfDrawSize)]
+        [fromString $ show i]
+    ]
   where
     col = maybe "black" id (Map.lookup (V i) strokes)
 drawVE strokes showE g (E i) (Coords x y) =
