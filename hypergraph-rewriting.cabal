@@ -19,6 +19,7 @@ library
       SMC
     , SMC.Hypergraph
     , SMC.Match
+    , SMC.Rewrite
     , SMC.Expr
     , SMC.Render
   build-depends:
