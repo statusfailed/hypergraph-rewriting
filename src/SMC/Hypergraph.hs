@@ -4,8 +4,11 @@ module SMC.Hypergraph where
 import GHC.Generics
 
 import Control.Monad
+import Control.Monad.Identity
 import Control.Monad.Logic
 import Control.Monad.State
+
+import Data.Maybe (catMaybes)
 
 import qualified Data.Map.Strict as Map
 import Data.Map.Strict (Map(..))
@@ -78,7 +81,6 @@ inDomain i = Vector.elem i . dom
 -- | Is node v in the codomain of a hyperedge.
 inCodomain :: Int -> Hyperedge a -> Bool
 inCodomain i = Vector.elem i . cod
-
 
 -- Immediate neighbours of a node
 neighbours :: Hypergraph v e -> Int -> [Int]
@@ -177,3 +179,85 @@ freeNodes g@(Hypergraph ns es) = (free \\ cs, free \\ ds)
     cs = f cod
     ns = Set.fromList (nodeNames g)
     free = ns \\ Set.intersection ds cs
+
+-- | All nodes in the boundary of a graph
+boundary :: Hypergraph v e -> Set Int
+boundary = uncurry Set.union . freeNodes
+
+-- | Rewrite the nodes in an edge, allowing for failure.
+remapEdgeM :: Monad m => (Int -> m Int) -> Hyperedge e -> m (Hyperedge e)
+remapEdgeM f (Hyperedge v d c) = liftM2 (Hyperedge v) (Vector.mapM f d) (Vector.mapM f c)
+
+remapEdge :: (Int -> Int) -> Hyperedge e -> Hyperedge e
+remapEdge f = runIdentity . remapEdgeM (return . f)
+
+-- | Make a hypergraph from two disconnected subgraphs, with no connecting
+-- parts.
+--
+-- Renames all nodes in second graph by (+n), where n is num nodes in 1st graph.
+-- TODO: test -
+disjoint :: Hypergraph v e -> Hypergraph v e -> Hypergraph v e
+disjoint h g = Hypergraph (nodes h Vector.++ nodes g) (edges h Vector.++ newEdgesG)
+  where
+    n = Vector.length $ nodes h
+    newEdgesG = Vector.map (remapEdge (+n)) (edges g)
+
+-- | Removes nodes and edges in a graph.
+--
+-- If a retained edge would reference a removed node, remove it as well.
+--
+-- If a node has index i, then nodes with indexes j < i are not renumbered.
+cutWhere :: (VE -> Bool) -> Hypergraph v e -> Hypergraph v e
+cutWhere f g = Hypergraph newNodes $ Vector.fromList newEdges
+  where
+    -- Remove undesired nodes + edges
+    keepNodes = filter (not . f . V) (nodeNames g) -- note: nodeNames is a sorted list!
+    keepEdges = filter (not . f . E) (edgeNames g)
+
+    -- map old node indexes to new ones, for reconnecting edges.
+    nodeRemap = Map.fromList $ zip keepNodes [0..] -- rename nodes
+
+    -- new node vector
+    newNodes = Vector.fromList $ fmap (nodes g !) keepNodes
+
+    -- new edge vector: look up edges, renumber domains/codomains, and remove those which
+    -- reference missing nodes.
+    newEdges = catMaybes . fmap (remapEdgeM (flip Map.lookup nodeRemap))
+             $ fmap (edges g!) keepEdges
+
+-- | mergeNodes x y removes node y from the graph, and replaces all references
+-- to it with x.
+--
+-- NOTE: renumbers nodes with index > y
+mergePair :: Int -> Int -> Hypergraph v e -> Hypergraph v e
+mergePair i j (Hypergraph n e) =
+  cutWhere (== V j) . Hypergraph n . fmap (remapEdge f) $ e
+  where
+    f x = if x == j then i else x
+
+-- Make nodes equal
+mergeNodes :: Map Int Int -> Hypergraph v e -> Hypergraph v e
+mergeNodes m (Hypergraph n e) =
+  cutWhere isCut . Hypergraph n . fmap (remapEdge rename) $ e
+  where
+    -- rewrite if present in map
+    rename x = maybe x id (Map.lookup x m)
+    -- remove from graph if that node was rewritten
+    isCut x = case x of
+      V i -> maybe False (/=i) (Map.lookup i m)
+      E i -> False
+
+-- tests
+--  let g, h be graphs
+--  in  g == cut (allOf h) (smoosh g h)
+
+
+-- | Is this a valid hypergraph? (for SMC rewriting)
+-- returns True if:
+--    * No node appears more than twice in all edges in the graph.
+isValid :: Hypergraph v e -> Bool
+isValid (Hypergraph _ e) = Map.null $ Map.filter (> 2) both
+  where
+    countFreqs = foldr $ Map.alter (Just . maybe 1 (+1))
+    doms = countFreqs Map.empty (fmap dom e)
+    both = countFreqs doms (fmap cod e)

@@ -31,7 +31,7 @@ import SMC.Hypergraph
 import SMC.Util (bsum)
 
 data Matching = Matching
-  { matchedNodes :: Bimap Int Int
+  { matchedNodes :: Bimap Int Int -- ^ Bidirectional map between pattern and graph nodes
   , matchedEdges :: Bimap Int Int
   } deriving(Eq, Ord, Show)
 
@@ -137,7 +137,7 @@ updateMatching g p t m@(Matching matchedNodes matchedEdges) = do
 -- | 'match graph pattern' finds an instance of 'pattern' within 'graph', returned as
 -- a bidirectional mapping of node and edge IDs.
 match'
-  :: (Eq e, Ord e, Eq v, Ord v)
+  :: Eq e
   => Hypergraph v e
   -> Hypergraph v e
   -> LogicState [VE] Matching
@@ -150,7 +150,7 @@ match' g p = step emptyMatching where
       []      -> return m -- TODO: checks? complete matching?
       (t:ts') -> updateMatching g p t m >>= (\m' -> put ts' >> step m')
 
-match :: (Ord e, Ord v) => Hypergraph v e -> Hypergraph v e -> [Matching]
+match :: Eq e => Hypergraph v e -> Hypergraph v e -> [Matching]
 match g p = fmap fst $ runLogicState (match' g p) $ taskBfs p
 
 
