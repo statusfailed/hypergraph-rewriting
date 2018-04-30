@@ -1,13 +1,15 @@
 # Hypergraph Rewriting
 
+View a demo [here](https://statusfailed.github.io/miso-smc/).
+
 An implementation of [Rewriting modulo symmetric monoidal structure](http://users.ecs.soton.ac.uk/ps/papers/rewriting.pdf)
 
 TODO list:
 
 - [x] Matching patterns in contexts
-- [ ] Rendering hypergraphs to SVG
+- [x] Rendering hypergraphs to SVG
+- [x] Replacing patterns (actual rewriting)
 - [ ] Parsing term expressions
-- [ ] Replacing patterns
 
 Cleanup:
 
