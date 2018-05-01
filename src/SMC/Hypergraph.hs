@@ -235,7 +235,8 @@ mergePair i j (Hypergraph n e) =
   where
     f x = if x == j then i else x
 
--- Make nodes equal
+-- | Using a map i -> j, remove replace all references to node i with j, and
+--   remove node i.
 mergeNodes :: Map Int Int -> Hypergraph v e -> Hypergraph v e
 mergeNodes m (Hypergraph n e) =
   cutWhere isCut . Hypergraph n . fmap (remapEdge rename) $ e
