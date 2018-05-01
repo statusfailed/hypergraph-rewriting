@@ -11,6 +11,11 @@ TODO list:
 - [x] Replacing patterns (actual rewriting)
 - [ ] Parsing term expressions
 
+Bugs
+
+- [x] slice doesn't terminate in presence of cycles
+- [x] rewrite doesn't either
+
 Cleanup:
 
 - [ ] remove `nub` call from taskBfs - figure out bug
