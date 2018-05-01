@@ -10,6 +10,7 @@ import Data.Monoid
 import Data.Vector (Vector(..), (!))
 import qualified Data.Vector as Vector
 
+import Data.Set (Set)
 import qualified Data.Set    as Set
 
 import Data.Map (Map(..))
@@ -42,13 +43,30 @@ initialEdges :: Hypergraph v e -> [VE]
 initialEdges =
   fmap (E . fst) . filter (Vector.null . dom . snd) . zip [0..] . toList . edges
 
--- All descendents of ve tagged with their max distance
--- TODO FIXME: doesn't terminate in cyclic graphs!
-distFrom :: (Int -> Int -> Int) -> Hypergraph v e -> [VE] -> Map VE Int
-distFrom f g ves = Map.unionsWith f (x : fmap (fmap (+1)) xs)
+-- A depth first search from initial nodes, accumulating distance using some function
+-- (e.g., min or max).
+-- Cycles are not counted.
+distFrom' :: (Int -> Int -> Int) -> Set VE -> Hypergraph v e -> [VE] -> Map VE Int
+distFrom' f visited g ves = Map.unionsWith f (x : fmap (fmap (+1)) xs)
   where
+    -- current set of distances
     x  = Map.fromList (fmap (,0) ves)
-    xs = fmap (distFrom f g . pure) (neighboursVE g ves)
+    -- depth-first recursed distances
+    xs = fmap go $ filter (flip Set.notMember visited) (neighboursVE g ves)
+    go x = distFrom' f (Set.union visited $ Set.singleton x) g [x]
+
+-- All descendents of ve tagged with their max distance.
+-- TODO FIXME: doesn't always terminate in cyclic graphs
+distFrom :: (Int -> Int -> Int) -> Hypergraph v e -> [VE] -> Map VE Int
+distFrom f g ves = distFrom' f Set.empty g ves
+
+-- add nodes missing from a distance map, but appearing in a graph.
+addMissing :: Hypergraph v e -> Map VE Int -> Map VE Int
+addMissing g m = Map.union missing m
+  where
+    maxDist = Map.foldl' max 0 m
+    allVEs  = fmap V (nodeNames g) ++ fmap E (edgeNames g)
+    missing = Map.fromList . fmap (,maxDist + 1) . filter (flip Map.notMember m) $ allVEs
 
 -- | Traverse the graph from left to right.
 --
@@ -60,6 +78,7 @@ slices g = fmap (fmap fst)
          . groupBy ((==) `on` snd)
          . sortBy (compare `on` snd)
          . Map.toList
+         . addMissing g
          . distFrom max g
          $ initialNodes g ++ initialEdges g
 
